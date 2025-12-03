@@ -4,7 +4,6 @@ import { PropertyService } from '@ghostfolio/api/services/property/property.serv
 
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Provider } from '@prisma/client';
 
 import { ValidateOAuthLoginParams } from './interfaces/interfaces';
 
@@ -25,6 +24,10 @@ export class AuthService {
           salt: this.configurationService.get('ACCESS_TOKEN_SALT')
         });
 
+        //if (!this.configurationService) console.log('config service exists');
+
+        //const hashedAccessToken = accessToken; // TEMPORARY REMOVE HASHING FOR TESTING PURPOSES ONLY
+
         const [user] = await this.userService.users({
           where: { accessToken: hashedAccessToken }
         });
@@ -42,42 +45,6 @@ export class AuthService {
         reject();
       }
     });
-  }
-
-  public async validateInternetIdentityLogin(principalId: string) {
-    try {
-      const provider: Provider = 'INTERNET_IDENTITY';
-
-      let [user] = await this.userService.users({
-        where: { provider, thirdPartyId: principalId }
-      });
-
-      if (!user) {
-        const isUserSignupEnabled =
-          await this.propertyService.isUserSignupEnabled();
-
-        if (!isUserSignupEnabled || true) {
-          throw new Error('Sign up forbidden');
-        }
-
-        // Create new user if not found
-        user = await this.userService.createUser({
-          data: {
-            provider,
-            thirdPartyId: principalId
-          }
-        });
-      }
-
-      return this.jwtService.sign({
-        id: user.id
-      });
-    } catch (error) {
-      throw new InternalServerErrorException(
-        'validateInternetIdentityLogin',
-        error.message
-      );
-    }
   }
 
   public async validateOAuthLogin({

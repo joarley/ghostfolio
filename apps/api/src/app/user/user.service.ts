@@ -92,6 +92,7 @@ export class UserService {
       password: accessToken,
       salt: this.configurationService.get('ACCESS_TOKEN_SALT')
     });
+    //const hashedAccessToken = accessToken; // TEMPORARY REMOVE HASHING FOR TESTING PURPOSES ONLY
 
     return { accessToken, hashedAccessToken };
   }
@@ -526,13 +527,21 @@ export class UserService {
     });
   }
 
-  public async createUser({
-    data
-  }: {
-    data: Prisma.UserCreateInput;
-  }): Promise<User> {
-    if (!data?.provider) {
+  public async createUser(
+    {
+      data
+    }: {
+      data: Prisma.UserCreateInput;
+    } = { data: {} }
+  ): Promise<User> {
+    if (!data.provider) {
       data.provider = 'ANONYMOUS';
+    }
+
+    if (!data.role) {
+      const hasAdmin = await this.hasAdmin();
+
+      data.role = hasAdmin ? 'USER' : 'ADMIN';
     }
 
     const user = await this.prismaService.user.create({
