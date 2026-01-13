@@ -534,10 +534,6 @@ export class PortfolioService {
         return type === 'ACCOUNT';
       }) ?? false;
 
-    const isFilteredByCash = filters?.some(({ id, type }) => {
-      return id === AssetClass.LIQUIDITY && type === 'ASSET_CLASS';
-    });
-
     const isFilteredByClosedHoldings =
       filters?.some(({ id, type }) => {
         return id === 'CLOSED' && type === 'HOLDING_TYPE';
@@ -568,6 +564,9 @@ export class PortfolioService {
     const symbolProfiles = await this.symbolProfileService.getSymbolProfiles(
       assetProfileIdentifiers
     );
+
+    const cashSymbolProfiles = this.getCashSymbolProfiles(cashDetails);
+    symbolProfiles.push(...cashSymbolProfiles);
 
     const symbolProfileMap: { [symbol: string]: EnhancedSymbolProfile } = {};
     for (const symbolProfile of symbolProfiles) {
@@ -671,18 +670,6 @@ export class PortfolioService {
         url: assetProfile.url,
         valueInBaseCurrency: valueInBaseCurrency.toNumber()
       };
-    }
-
-    if (filters?.length === 0 || isFilteredByAccount || isFilteredByCash) {
-      const cashPositions = this.getCashPositions({
-        cashDetails,
-        userCurrency,
-        value: filteredValueInBaseCurrency
-      });
-
-      for (const symbol of Object.keys(cashPositions)) {
-        holdings[symbol] = cashPositions[symbol];
-      }
     }
 
     const { accounts, platforms } = await this.getValueOfAccountsAndPlatforms({
@@ -1560,6 +1547,37 @@ export class PortfolioService {
     return cashPositions;
   }
 
+  private getCashSymbolProfiles(cashDetails: CashDetails) {
+    const cashSymbols = [
+      ...new Set(cashDetails.accounts.map(({ currency }) => currency))
+    ];
+
+    return cashSymbols.map<EnhancedSymbolProfile>((currency) => {
+      const account = cashDetails.accounts.find(
+        ({ currency: accountCurrency }) => {
+          return accountCurrency === currency;
+        }
+      );
+
+      return {
+        currency,
+        activitiesCount: 0,
+        assetClass: AssetClass.LIQUIDITY,
+        assetSubClass: AssetSubClass.CASH,
+        countries: [],
+        createdAt: account.createdAt,
+        dataSource: DataSource.MANUAL,
+        holdings: [],
+        id: currency,
+        isActive: true,
+        name: currency,
+        sectors: [],
+        symbol: currency,
+        updatedAt: account.updatedAt
+      };
+    });
+  }
+
   private getDividendsByGroup({
     dividends,
     groupBy
@@ -1866,18 +1884,17 @@ export class PortfolioService {
       netPerformanceWithCurrencyEffect
     } = performance;
 
-    const dividendInBaseCurrency =
-      await portfolioCalculator.getDividendInBaseCurrency();
-
     const totalEmergencyFund = this.getTotalEmergencyFund({
       emergencyFundHoldingsValueInBaseCurrency,
       userSettings: user.settings?.settings as UserSettings
     });
 
+    const dateOfFirstActivity = portfolioCalculator.getStartDate();
+
+    const dividendInBaseCurrency =
+      await portfolioCalculator.getDividendInBaseCurrency();
+
     const fees = await portfolioCalculator.getFeesInBaseCurrency();
-
-    const firstOrderDate = portfolioCalculator.getStartDate();
-
     const interest = await portfolioCalculator.getInterestInBaseCurrency();
 
     const liabilities =
@@ -1935,7 +1952,7 @@ export class PortfolioService {
       .minus(liabilities)
       .toNumber();
 
-    const daysInMarket = differenceInDays(new Date(), firstOrderDate);
+    const daysInMarket = differenceInDays(new Date(), dateOfFirstActivity);
 
     const annualizedPerformancePercent = getAnnualizedPerformancePercent({
       daysInMarket,
@@ -1954,6 +1971,7 @@ export class PortfolioService {
       annualizedPerformancePercent,
       annualizedPerformancePercentWithCurrencyEffect,
       cash,
+      dateOfFirstActivity,
       excludedAccountsAndActivities,
       netPerformance,
       netPerformancePercentage,
@@ -2169,7 +2187,7 @@ export class PortfolioService {
           accounts[account?.id || UNKNOWN_KEY] = {
             balance: 0,
             currency: account?.currency,
-            name: account.name,
+            name: account?.name,
             valueInBaseCurrency: currentValueOfSymbolInBaseCurrency
           };
         }
@@ -2183,7 +2201,7 @@ export class PortfolioService {
           platforms[account?.platformId || UNKNOWN_KEY] = {
             balance: 0,
             currency: account?.currency,
-            name: account.platform?.name,
+            name: account?.platform?.name,
             valueInBaseCurrency: currentValueOfSymbolInBaseCurrency
           };
         }

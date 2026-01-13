@@ -1,8 +1,7 @@
-/* eslint-disable @nx/enforce-module-boundaries */
-import { NotificationService } from '@ghostfolio/client/core/notification/notification.service';
 import { ConfirmationDialogType } from '@ghostfolio/common/enums';
-import { getLocale } from '@ghostfolio/common/helper';
+import { getLocale, getLowercase } from '@ghostfolio/common/helper';
 import { GfEntityLogoComponent } from '@ghostfolio/ui/entity-logo';
+import { NotificationService } from '@ghostfolio/ui/notifications';
 import { GfValueComponent } from '@ghostfolio/ui/value';
 
 import { CommonModule } from '@angular/common';
@@ -33,7 +32,6 @@ import {
   trashOutline,
   walletOutline
 } from 'ionicons/icons';
-import { get } from 'lodash';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import { Subject, Subscription } from 'rxjs';
 
@@ -134,8 +132,9 @@ export class GfAccountsTableComponent implements OnChanges, OnDestroy {
     this.isLoading = true;
 
     this.dataSource = new MatTableDataSource(this.accounts);
+    this.dataSource.sortingDataAccessor = getLowercase;
+
     this.dataSource.sort = this.sort;
-    this.dataSource.sortingDataAccessor = get;
 
     if (this.accounts) {
       this.isLoading = false;

@@ -7,9 +7,144 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
-#### Changed
+### Added
 
+- Set up the language localization for Korean (`ko`)
+
+## 2.229.0 - 2026-01-11
+
+### Changed
+
+- Set the active sort column in the accounts table component
+- Deprecated `activities` in the endpoint `GET api/v1/portfolio/holding/:dataSource/:symbol`
+- Moved the admin service to `@ghostfolio/ui/services`
+- Moved the data service to `@ghostfolio/ui/services`
+- Refactored the dividend import
+- Refreshed the cryptocurrencies list
+
+### Fixed
+
+- Fixed the net worth calculation to prevent the double counting of cash positions
+- Fixed the filtering by asset class in the endpoint `GET api/v1/portfolio/holdings`
+- Fixed the case-insensitive sorting in the accounts table component
+- Fixed the case-insensitive sorting in the benchmark component
+- Fixed the case-insensitive sorting in the holdings table component
+
+## 2.228.0 - 2026-01-03
+
+### Added
+
+- Extended the portfolio holdings to include performance with currency effects for cash positions
+
+### Changed
+
+- Integrated the endpoint to get all platforms (`GET api/v1/platforms`) into the create or update account dialog
+- Extracted the scraper configuration to a dedicated tab in the asset profile details dialog of the admin control panel
+- Improved the language localization for German (`de`)
+- Upgraded `@date-fns/utc` from version `2.1.0` to `2.1.1`
+
+### Fixed
+
+- Improved the table headers’ alignment of the accounts table on mobile
+
+## 2.227.0 - 2026-01-02
+
+### Changed
+
+- Initialized the input properties in the _FIRE_ calculator
+- Removed the deprecated public _Stripe_ key
+- Upgraded `stripe` from version `18.5.0` to `20.1.0`
+
+### Fixed
+
+- Fixed the import of `jsonpath` to support REST APIs (`JSON`) via the scraper configuration
+
+## 2.226.0 - 2026-01-01
+
+### Added
+
+- Extended the content of the _Self-Hosting_ section by information about additional data providers on the Frequently Asked Questions (FAQ) page
+
+### Changed
+
+- Upgraded `class-validator` from version `0.14.2` to `0.14.3`
+- Upgraded `yahoo-finance2` from version `3.10.2` to `3.11.2`
+
+## 2.225.0 - 2025-12-31
+
+### Added
+
+- Added a new endpoint to get all platforms (`GET api/v1/platforms`)
+- Added the session url to the endpoint response of the _Stripe_ checkout
+
+### Changed
+
+- Improved the routing of the user detail dialog in the users section of the admin control panel
+- Lifted the asset profile identifier editing restriction for `MANUAL` data sources in the asset profile details dialog of the admin control panel
+- Deprecated the public _Stripe_ key
+- Improved the language localization for German (`de`)
+- Eliminated `ngx-stripe`
+- Upgraded `angular` from version `20.2.4` to `21.0.6`
+- Upgraded `marked` from version `15.0.4` to `17.0.1`
+- Upgraded `ngx-device-detector` from version `10.1.0` to `11.0.0`
+- Upgraded `ng-extract-i18n-merge` from `3.1.0` to `3.2.1`
+- Upgraded `ngx-markdown` from version `20.0.0` to `21.0.1`
+- Upgraded `Nx` from version `21.5.1` to `22.3.3`
+- Upgraded `shx` from version `0.3.4` to `0.4.0`
+- Upgraded `storybook` from version `9.1.5` to `10.1.10`
+- Upgraded `zone.js` from version `0.15.1` to `0.16.0`
+
+### Fixed
+
+- Added the missing currency suffix to the cash balance field in the create or update account dialog
+- Fixed the time in market display of the portfolio summary tab on the home page for the impersonation mode
+- Fixed the delete button in the asset profile details dialog of the admin control panel by providing the missing `watchedByCount` parameter
+
+## 2.224.2 - 2025-12-20
+
+### Added
+
+- Included the calendar year boundaries in the portfolio calculations
+- Added the ISIN number to the asset profile details dialog of the admin control panel
+
+### Changed
+
+- Restored the support for specific calendar year date ranges (`2024`, `2023`, `2022`, etc.) in the assistant (experimental)
+- Removed the deprecated _Angular CLI_ decorator (`decorate-angular-cli.js`)
+- Refreshed the cryptocurrencies list
+
+### Fixed
+
+- Localized date formatting across the _FIRE_ section
+
+## 2.223.0 - 2025-12-14
+
+### Added
+
+- Included wealth projection data calculated for the retirement date in the _FIRE_ section (experimental)
+
+### Changed
+
+- Moved the notification module to `@ghostfolio/ui`
+- Improved the language localization for German (`de`)
+
+### Fixed
+
+- Fixed a calculation issue that resulted in the incorrect assignment of unknown data in the portfolio proportion chart component
+
+## 2.222.0 - 2025-12-07
+
+### Added
+
+- Introduced data source transformation support in the import functionality for self-hosted environments
+- Added _OpenID Connect_ (`OIDC`) as a new login provider for self-hosted environments (experimental)
+- Added an optional 3D hover effect to the membership card component
+
+### Changed
+
+- Increased the numerical precision for cryptocurrency quantities in the holding detail dialog
 - Upgraded `envalid` from version `8.1.0` to `8.1.1`
+- Upgraded `prettier` from version `3.7.3` to `3.7.4`
 
 ## 2.221.0 - 2025-12-01
 

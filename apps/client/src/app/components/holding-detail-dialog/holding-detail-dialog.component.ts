@@ -1,4 +1,3 @@
-import { DataService } from '@ghostfolio/client/services/data.service';
 import { UserService } from '@ghostfolio/client/services/user/user.service';
 import {
   NUMERICAL_PRECISION_THRESHOLD_3_FIGURES,
@@ -26,6 +25,7 @@ import { GfHistoricalMarketDataEditorComponent } from '@ghostfolio/ui/historical
 import { translate } from '@ghostfolio/ui/i18n';
 import { GfLineChartComponent } from '@ghostfolio/ui/line-chart';
 import { GfPortfolioProportionChartComponent } from '@ghostfolio/ui/portfolio-proportion-chart';
+import { DataService } from '@ghostfolio/ui/services';
 import { GfTagsSelectorComponent } from '@ghostfolio/ui/tags-selector';
 import { GfValueComponent } from '@ghostfolio/ui/value';
 
@@ -413,10 +413,10 @@ export class GfHoldingDetailDialogComponent implements OnDestroy, OnInit {
           } else if (SymbolProfile?.assetSubClass === 'CRYPTOCURRENCY') {
             if (SymbolProfile?.symbol === 'BTC' || SymbolProfile?.symbol === "bitcoin") {
               this.quantityPrecision = 8;
-            } else if (this.quantity < 1) {
-              this.quantityPrecision = 7;
+            } else if (this.quantity < 10) {
+              this.quantityPrecision = 8;
             } else if (this.quantity < 1000) {
-              this.quantityPrecision = 5;
+              this.quantityPrecision = 6;
             } else if (this.quantity >= 10000000) {
               this.quantityPrecision = 0;
             }

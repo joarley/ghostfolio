@@ -42,6 +42,7 @@ import {
   MarketDataDetailsResponse,
   MarketDataOfMarketsResponse,
   OAuthResponse,
+  PlatformsResponse,
   PortfolioDetails,
   PortfolioDividendsResponse,
   PortfolioHoldingResponse,
@@ -521,6 +522,10 @@ export class DataService {
     );
   }
 
+  public fetchPlatforms() {
+    return this.http.get<PlatformsResponse>('/api/v1/platforms');
+  }
+
   public fetchPortfolioDetails({
     filters,
     withMarkets = false
@@ -562,6 +567,12 @@ export class DataService {
                 ? response.holdings[symbol].value
                 : response.holdings[symbol].valueInPercentage;
             }
+          }
+
+          if (response.summary?.dateOfFirstActivity) {
+            response.summary.dateOfFirstActivity = parseISO(
+              response.summary.dateOfFirstActivity
+            );
           }
 
           return response;
