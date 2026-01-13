@@ -1,11 +1,9 @@
-import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 import { LogoItem } from './interfaces/interfaces';
 
 @Component({
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [CommonModule],
   selector: 'gf-logo-carousel',
   styleUrls: ['./logo-carousel.component.scss'],
   templateUrl: './logo-carousel.component.html'
@@ -49,6 +47,13 @@ export class GfLogoCarouselComponent {
       url: 'https://openalternative.co'
     },
     {
+      className: 'logo-oss-gallery',
+      isMask: true,
+      name: 'OSS Gallery',
+      title: 'OSS Gallery: Discover the best open-source projects',
+      url: 'https://oss.gallery'
+    },
+    {
       className: 'logo-privacy-tools',
       isMask: true,
       name: 'Privacy Tools',
@@ -81,6 +86,12 @@ export class GfLogoCarouselComponent {
       name: 'selfh.st',
       title: 'selfh.st — Self-hosted content and software',
       url: 'https://selfh.st'
+    },
+    {
+      className: 'logo-selfhostedhub',
+      name: 'SelfhostedHub',
+      title: 'SelfhostedHub — Discover best self-hosted software',
+      url: 'https://selfhostedhub.com'
     },
     {
       className: 'logo-sourceforge',

@@ -1,4 +1,3 @@
-import { DataService } from '@ghostfolio/client/services/data.service';
 import { ImpersonationStorageService } from '@ghostfolio/client/services/impersonation-storage.service';
 import { UserService } from '@ghostfolio/client/services/user/user.service';
 import {
@@ -9,6 +8,7 @@ import {
 import { hasPermission, permissions } from '@ghostfolio/common/permissions';
 import { GfBenchmarkComponent } from '@ghostfolio/ui/benchmark';
 import { GfPremiumIndicatorComponent } from '@ghostfolio/ui/premium-indicator';
+import { DataService } from '@ghostfolio/ui/services';
 
 import {
   ChangeDetectionStrategy,
@@ -149,17 +149,17 @@ export class GfHomeWatchlistComponent implements OnDestroy, OnInit {
       .subscribe((user) => {
         this.user = user;
 
-        const dialogRef = this.dialog.open(
+        const dialogRef = this.dialog.open<
           GfCreateWatchlistItemDialogComponent,
-          {
-            autoFocus: false,
-            data: {
-              deviceType: this.deviceType,
-              locale: this.user?.settings?.locale
-            } as CreateWatchlistItemDialogParams,
-            width: this.deviceType === 'mobile' ? '100vw' : '50rem'
-          }
-        );
+          CreateWatchlistItemDialogParams
+        >(GfCreateWatchlistItemDialogComponent, {
+          autoFocus: false,
+          data: {
+            deviceType: this.deviceType,
+            locale: this.user?.settings?.locale
+          },
+          width: this.deviceType === 'mobile' ? '100vw' : '50rem'
+        });
 
         dialogRef
           .afterClosed()
