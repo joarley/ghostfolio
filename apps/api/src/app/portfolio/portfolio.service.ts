@@ -1,7 +1,7 @@
 import { AccountBalanceService } from '@ghostfolio/api/app/account-balance/account-balance.service';
 import { AccountService } from '@ghostfolio/api/app/account/account.service';
 import { CashDetails } from '@ghostfolio/api/app/account/interfaces/cash-details.interface';
-import { OrderService } from '@ghostfolio/api/app/order/order.service';
+import { ActivitiesService } from '@ghostfolio/api/app/activities/activities.service';
 import { UserService } from '@ghostfolio/api/app/user/user.service';
 import { getFactor } from '@ghostfolio/api/helper/portfolio.helper';
 import { AccountClusterRiskCurrentInvestment } from '@ghostfolio/api/models/rules/account-cluster-risk/current-investment';
@@ -13,7 +13,7 @@ import { CurrencyClusterRiskCurrentInvestment } from '@ghostfolio/api/models/rul
 import { EconomicMarketClusterRiskDevelopedMarkets } from '@ghostfolio/api/models/rules/economic-market-cluster-risk/developed-markets';
 import { EconomicMarketClusterRiskEmergingMarkets } from '@ghostfolio/api/models/rules/economic-market-cluster-risk/emerging-markets';
 import { EmergencyFundSetup } from '@ghostfolio/api/models/rules/emergency-fund/emergency-fund-setup';
-import { FeeRatioInitialInvestment } from '@ghostfolio/api/models/rules/fees/fee-ratio-initial-investment';
+import { FeeRatioTotalInvestmentVolume } from '@ghostfolio/api/models/rules/fees/fee-ratio-total-investment-volume';
 import { BuyingPower } from '@ghostfolio/api/models/rules/liquidity/buying-power';
 import { RegionalMarketClusterRiskAsiaPacific } from '@ghostfolio/api/models/rules/regional-market-cluster-risk/asia-pacific';
 import { RegionalMarketClusterRiskEmergingMarkets } from '@ghostfolio/api/models/rules/regional-market-cluster-risk/emerging-markets';
@@ -105,13 +105,13 @@ export class PortfolioService {
   public constructor(
     private readonly accountBalanceService: AccountBalanceService,
     private readonly accountService: AccountService,
+    private readonly activitiesService: ActivitiesService,
     private readonly benchmarkService: BenchmarkService,
     private readonly calculatorFactory: PortfolioCalculatorFactory,
     private readonly dataProviderService: DataProviderService,
     private readonly exchangeRateDataService: ExchangeRateDataService,
     private readonly i18nService: I18nService,
     private readonly impersonationService: ImpersonationService,
-    private readonly orderService: OrderService,
     @Inject(REQUEST) private readonly request: RequestWithUser,
     private readonly rulesService: RulesService,
     private readonly symbolProfileService: SymbolProfileService,
@@ -179,9 +179,9 @@ export class PortfolioService {
 
     return Promise.all(
       accounts.map(async (account) => {
+        let activitiesCount = 0;
         let dividendInBaseCurrency = 0;
         let interestInBaseCurrency = 0;
-        let transactionCount = 0;
 
         for (const {
           currency,
@@ -214,7 +214,7 @@ export class PortfolioService {
           }
 
           if (!isDraft) {
-            transactionCount += 1;
+            activitiesCount += 1;
           }
         }
 
@@ -234,9 +234,9 @@ export class PortfolioService {
 
         const result = {
           ...account,
+          activitiesCount,
           dividendInBaseCurrency,
           interestInBaseCurrency,
-          transactionCount,
           valueInBaseCurrency,
           allocationInPercentage: 0,
           balanceInBaseCurrency: this.exchangeRateDataService.toCurrency(
@@ -274,6 +274,8 @@ export class PortfolioService {
       withExcludedAccounts
     });
 
+    let activitiesCount = 0;
+
     const searchQuery = filters.find(({ type }) => {
       return type === 'SEARCH_QUERY';
     })?.id;
@@ -293,9 +295,10 @@ export class PortfolioService {
     let totalDividendInBaseCurrency = new Big(0);
     let totalInterestInBaseCurrency = new Big(0);
     let totalValueInBaseCurrency = new Big(0);
-    let transactionCount = 0;
 
     for (const account of accounts) {
+      activitiesCount += account.activitiesCount;
+
       totalBalanceInBaseCurrency = totalBalanceInBaseCurrency.plus(
         account.balanceInBaseCurrency
       );
@@ -308,7 +311,6 @@ export class PortfolioService {
       totalValueInBaseCurrency = totalValueInBaseCurrency.plus(
         account.valueInBaseCurrency
       );
-      transactionCount += account.transactionCount;
     }
 
     for (const account of accounts) {
@@ -322,7 +324,7 @@ export class PortfolioService {
 
     return {
       accounts,
-      transactionCount,
+      activitiesCount,
       totalBalanceInBaseCurrency: totalBalanceInBaseCurrency.toNumber(),
       totalDividendInBaseCurrency: totalDividendInBaseCurrency.toNumber(),
       totalInterestInBaseCurrency: totalInterestInBaseCurrency.toNumber(),
@@ -330,13 +332,13 @@ export class PortfolioService {
     };
   }
 
-  public async getDividends({
+  public getDividends({
     activities,
     groupBy
   }: {
     activities: Activity[];
     groupBy?: GroupBy;
-  }): Promise<InvestmentItem[]> {
+  }): InvestmentItem[] {
     let dividends = activities.map(({ currency, date, value }) => {
       return {
         date: format(date, DATE_FORMAT),
@@ -413,10 +415,10 @@ export class PortfolioService {
     const user = await this.userService.user({ id: userId });
     const userCurrency = this.getUserCurrency(user);
 
-    const { endDate, startDate } = getIntervalFromDateRange(dateRange);
+    const { endDate, startDate } = getIntervalFromDateRange({ dateRange });
 
     const { activities } =
-      await this.orderService.getOrdersForPortfolioCalculator({
+      await this.activitiesService.getActivitiesForPortfolioCalculator({
         filters,
         userCurrency,
         userId
@@ -500,7 +502,7 @@ export class PortfolioService {
     );
 
     const { activities } =
-      await this.orderService.getOrdersForPortfolioCalculator({
+      await this.activitiesService.getActivitiesForPortfolioCalculator({
         filters,
         userCurrency,
         userId
@@ -579,9 +581,10 @@ export class PortfolioService {
     }
 
     for (const {
+      activitiesCount,
       currency,
+      dateOfFirstActivity,
       dividend,
-      firstBuyDate,
       grossPerformance,
       grossPerformanceWithCurrencyEffect,
       grossPerformancePercentage,
@@ -595,7 +598,6 @@ export class PortfolioService {
       quantity,
       symbol,
       tags,
-      transactionCount,
       valueInBaseCurrency
     } of positions) {
       if (isFilteredByClosedHoldings === true) {
@@ -622,21 +624,43 @@ export class PortfolioService {
       }
 
       holdings[symbol] = {
+        activitiesCount,
         currency,
         markets,
         marketsAdvanced,
         marketPrice,
         symbol,
         tags,
-        transactionCount,
         allocationInPercentage: filteredValueInBaseCurrency.eq(0)
           ? 0
           : valueInBaseCurrency.div(filteredValueInBaseCurrency).toNumber(),
         assetClass: assetProfile.assetClass,
+        assetProfile: {
+          assetClass: assetProfile.assetClass,
+          assetSubClass: assetProfile.assetSubClass,
+          countries: assetProfile.countries,
+          currency: assetProfile.currency,
+          dataSource: assetProfile.dataSource,
+          holdings: assetProfile.holdings.map(
+            ({ allocationInPercentage, name }) => {
+              return {
+                allocationInPercentage,
+                name,
+                valueInBaseCurrency: valueInBaseCurrency
+                  .mul(allocationInPercentage)
+                  .toNumber()
+              };
+            }
+          ),
+          name: assetProfile.name,
+          sectors: assetProfile.sectors,
+          symbol: assetProfile.symbol,
+          url: assetProfile.url
+        },
         assetSubClass: assetProfile.assetSubClass,
         countries: assetProfile.countries,
         dataSource: assetProfile.dataSource,
-        dateOfFirstActivity: parseDate(firstBuyDate),
+        dateOfFirstActivity: parseDate(dateOfFirstActivity),
         dividend: dividend?.toNumber() ?? 0,
         grossPerformance: grossPerformance?.toNumber() ?? 0,
         grossPerformancePercent: grossPerformancePercentage?.toNumber() ?? 0,
@@ -768,7 +792,7 @@ export class PortfolioService {
     const userCurrency = this.getUserCurrency(user);
 
     const { activities } =
-      await this.orderService.getOrdersForPortfolioCalculator({
+      await this.activitiesService.getActivitiesForPortfolioCalculator({
         userCurrency,
         userId
       });
@@ -801,11 +825,12 @@ export class PortfolioService {
     }
 
     const {
+      activitiesCount,
       averagePrice,
       currency,
+      dateOfFirstActivity,
       dividendInBaseCurrency,
-      fee,
-      firstBuyDate,
+      feeInBaseCurrency,
       grossPerformance,
       grossPerformancePercentage,
       grossPerformancePercentageWithCurrencyEffect,
@@ -819,8 +844,7 @@ export class PortfolioService {
       quantity,
       tags,
       timeWeightedInvestment,
-      timeWeightedInvestmentWithCurrencyEffect,
-      transactionCount
+      timeWeightedInvestmentWithCurrencyEffect
     } = holding;
 
     const activitiesOfHolding = activities.filter(({ SymbolProfile }) => {
@@ -831,7 +855,10 @@ export class PortfolioService {
     });
 
     const dividendYieldPercent = getAnnualizedPerformancePercent({
-      daysInMarket: differenceInDays(new Date(), parseDate(firstBuyDate)),
+      daysInMarket: differenceInDays(
+        new Date(),
+        parseDate(dateOfFirstActivity)
+      ),
       netPerformancePercentage: timeWeightedInvestment.eq(0)
         ? new Big(0)
         : dividendInBaseCurrency.div(timeWeightedInvestment)
@@ -839,7 +866,10 @@ export class PortfolioService {
 
     const dividendYieldPercentWithCurrencyEffect =
       getAnnualizedPerformancePercent({
-        daysInMarket: differenceInDays(new Date(), parseDate(firstBuyDate)),
+        daysInMarket: differenceInDays(
+          new Date(),
+          parseDate(dateOfFirstActivity)
+        ),
         netPerformancePercentage: timeWeightedInvestmentWithCurrencyEffect.eq(0)
           ? new Big(0)
           : dividendInBaseCurrency.div(timeWeightedInvestmentWithCurrencyEffect)
@@ -848,7 +878,7 @@ export class PortfolioService {
     const historicalData = await this.dataProviderService.getHistorical(
       [{ dataSource, symbol }],
       'day',
-      parseISO(firstBuyDate),
+      parseISO(dateOfFirstActivity),
       new Date()
     );
 
@@ -913,7 +943,7 @@ export class PortfolioService {
       // Add historical entry for buy date, if no historical data available
       historicalDataArray.push({
         averagePrice: activitiesOfHolding[0].unitPriceInAssetProfileCurrency,
-        date: firstBuyDate,
+        date: dateOfFirstActivity,
         marketPrice: activitiesOfHolding[0].unitPriceInAssetProfileCurrency,
         quantity: activitiesOfHolding[0].quantity
       });
@@ -926,25 +956,20 @@ export class PortfolioService {
       );
 
     return {
-      firstBuyDate,
+      activitiesCount,
+      dateOfFirstActivity,
       marketPrice,
       marketPriceMax,
       marketPriceMin,
       SymbolProfile,
       tags,
-      activities: activitiesOfHolding,
-      activitiesCount: transactionCount,
       averagePrice: averagePrice.toNumber(),
       dataProviderInfo: portfolioCalculator.getDataProviderInfos()?.[0],
       dividendInBaseCurrency: dividendInBaseCurrency.toNumber(),
       dividendYieldPercent: dividendYieldPercent.toNumber(),
       dividendYieldPercentWithCurrencyEffect:
         dividendYieldPercentWithCurrencyEffect.toNumber(),
-      feeInBaseCurrency: this.exchangeRateDataService.toCurrency(
-        fee.toNumber(),
-        SymbolProfile.currency,
-        userCurrency
-      ),
+      feeInBaseCurrency: feeInBaseCurrency.toNumber(),
       grossPerformance: grossPerformance?.toNumber(),
       grossPerformancePercent: grossPerformancePercentage?.toNumber(),
       grossPerformancePercentWithCurrencyEffect:
@@ -997,7 +1022,7 @@ export class PortfolioService {
         userId,
         userCurrency
       }),
-      this.orderService.getOrdersForPortfolioCalculator({
+      this.activitiesService.getActivitiesForPortfolioCalculator({
         filters,
         userCurrency,
         userId
@@ -1016,7 +1041,8 @@ export class PortfolioService {
           netPerformancePercentage: 0,
           netPerformancePercentageWithCurrencyEffect: 0,
           netPerformanceWithCurrencyEffect: 0,
-          totalInvestment: 0
+          totalInvestment: 0,
+          totalInvestmentValueWithCurrencyEffect: 0
         }
       };
     }
@@ -1033,7 +1059,7 @@ export class PortfolioService {
     const { errors, hasErrors, historicalData } =
       await portfolioCalculator.getSnapshot();
 
-    const { endDate, startDate } = getIntervalFromDateRange(dateRange);
+    const { endDate, startDate } = getIntervalFromDateRange({ dateRange });
 
     const { chart } = await portfolioCalculator.getPerformance({
       end: endDate,
@@ -1047,6 +1073,7 @@ export class PortfolioService {
       netPerformanceWithCurrencyEffect,
       netWorth,
       totalInvestment,
+      totalInvestmentValueWithCurrencyEffect,
       valueWithCurrencyEffect
     } = chart?.at(-1) ?? {
       netPerformance: 0,
@@ -1067,6 +1094,7 @@ export class PortfolioService {
         netPerformance,
         netPerformanceWithCurrencyEffect,
         totalInvestment,
+        totalInvestmentValueWithCurrencyEffect,
         currentNetWorth: netWorth,
         currentValueInBaseCurrency: valueWithCurrencyEffect,
         netPerformancePercentage: netPerformanceInPercentage,
@@ -1315,11 +1343,11 @@ export class PortfolioService {
         }),
         rules: await this.rulesService.evaluate(
           [
-            new FeeRatioInitialInvestment(
+            new FeeRatioTotalInvestmentVolume(
               this.exchangeRateDataService,
               this.i18nService,
               userSettings.language,
-              summary.committedFunds,
+              summary.totalBuy + summary.totalSell,
               summary.fees
             )
           ],
@@ -1355,7 +1383,12 @@ export class PortfolioService {
   }) {
     userId = await this.getUserId(impersonationId, userId);
 
-    await this.orderService.assignTags({ dataSource, symbol, tags, userId });
+    await this.activitiesService.assignTags({
+      dataSource,
+      symbol,
+      tags,
+      userId
+    });
   }
 
   private getAggregatedMarkets(holdings: Record<string, PortfolioPosition>): {
@@ -1674,9 +1707,21 @@ export class PortfolioService {
   }): PortfolioPosition {
     return {
       currency,
+      activitiesCount: 0,
       allocationInPercentage: 0,
       assetClass: AssetClass.LIQUIDITY,
       assetSubClass: AssetSubClass.CASH,
+      assetProfile: {
+        currency,
+        assetClass: AssetClass.LIQUIDITY,
+        assetSubClass: AssetSubClass.CASH,
+        countries: [],
+        dataSource: undefined,
+        holdings: [],
+        name: currency,
+        sectors: [],
+        symbol: currency
+      },
       countries: [],
       dataSource: undefined,
       dateOfFirstActivity: undefined,
@@ -1697,7 +1742,6 @@ export class PortfolioService {
       sectors: [],
       symbol: currency,
       tags: [],
-      transactionCount: 0,
       valueInBaseCurrency: balance
     };
   }
@@ -1847,7 +1891,7 @@ export class PortfolioService {
     userId = await this.getUserId(impersonationId, userId);
     const user = await this.userService.user({ id: userId });
 
-    const { activities } = await this.orderService.getOrders({
+    const { activities } = await this.activitiesService.getActivities({
       userCurrency,
       userId,
       withExcludedAccountsAndActivities: true
@@ -1869,8 +1913,11 @@ export class PortfolioService {
       }
     }
 
-    const { currentValueInBaseCurrency, totalInvestment } =
-      await portfolioCalculator.getSnapshot();
+    const {
+      currentValueInBaseCurrency,
+      totalInvestment,
+      totalInvestmentWithCurrencyEffect
+    } = await portfolioCalculator.getSnapshot();
 
     const { performance } = await this.getPerformance({
       impersonationId,
@@ -1916,8 +1963,6 @@ export class PortfolioService {
       .minus(totalEmergencyFund)
       .plus(emergencyFundHoldingsValueInBaseCurrency)
       .toNumber();
-
-    const committedFunds = new Big(totalBuy).minus(totalSell);
 
     const totalOfExcludedActivities = this.getSumOfActivityType({
       userCurrency,
@@ -1982,7 +2027,6 @@ export class PortfolioService {
       activityCount: activities.filter(({ type }) => {
         return ['BUY', 'SELL'].includes(type);
       }).length,
-      committedFunds: committedFunds.toNumber(),
       currentValueInBaseCurrency: currentValueInBaseCurrency.toNumber(),
       dividendInBaseCurrency: dividendInBaseCurrency.toNumber(),
       emergencyFund: {
@@ -2013,6 +2057,8 @@ export class PortfolioService {
       interestInBaseCurrency: interest.toNumber(),
       liabilitiesInBaseCurrency: liabilities.toNumber(),
       totalInvestment: totalInvestment.toNumber(),
+      totalInvestmentValueWithCurrencyEffect:
+        totalInvestmentWithCurrencyEffect.toNumber(),
       totalValueInBaseCurrency: netWorth
     };
   }
