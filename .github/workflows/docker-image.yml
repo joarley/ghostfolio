@@ -1,13 +1,7 @@
 name: Docker image CD
 
 on:
-  push:
-    tags:
-      - '*.*.*'
   workflow_dispatch:
-  pull_request:
-    branches:
-      - 'main'
 
 jobs:
   build_and_push:
